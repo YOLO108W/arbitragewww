@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预测市场套利计算器</title>
+    <style>
+        body { 
+            font-family: "微软正黑体", Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            margin: 0; 
+            padding: 20px; 
+            min-height: 100vh;
+        }
+        .calculator { 
+            max-width: 480px; 
+            margin: 40px auto; 
+            background: white; 
+            padding: 35px 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15); 
+        }
+        h1 { 
+            text-align: center; 
+            color: #1e3a8a; 
+            margin-bottom: 30px; 
+            font-size: 26px;
+        }
+        label { 
+            display: block; 
+            margin: 18px 0 8px; 
+            font-weight: bold; 
+            color: #1e3a8a; 
+        }
+        input { 
+            width: 100%; 
+            max-width: 420px; 
+            padding: 14px; 
+            border: 2px solid #e0e7ff; 
+            border-radius: 10px; 
+            font-size: 16px; 
+            transition: all 0.3s;
+        }
+        input:focus { 
+            border-color: #3b82f6; 
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); 
+            outline: none; 
+        }
+
+        /* 徹底移除上下箭頭 */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        button { 
+            width: 100%; 
+            max-width: 420px; 
+            padding: 16px; 
+            margin: 30px auto 0; 
+            display: block;
+            background: linear-gradient(135deg, #1e40af, #3b82f6); 
+            color: white; 
+            font-size: 18px; 
+            font-weight: bold; 
+            border: none; 
+            border-radius: 12px; 
+            cursor: pointer; 
+            transition: all 0.3s;
+        }
+        button:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 20px rgba(30, 64, 175, 0.3); 
+        }
+        .result { 
+            margin-top: 30px; 
+            padding: 25px; 
+            background: #f0f9ff; 
+            border-radius: 16px; 
+            border: 2px solid #bae6fd; 
+        }
+        .highlight { 
+            font-size: 21px; 
+            font-weight: bold; 
+            color: #1e40af; 
+            margin: 12px 0; 
+        }
+    </style>
+</head>
+<body>
+
+<div class="calculator">
+    <h1>🎯 预测市场套利计算器</h1>
+    
+    <label>A 价格 (Max:0.99) (价格较高的一方)</label>
+    <input type="number" id="PA" step="0.01" onwheel="this.blur()">
+
+    <label>B 价格 (Max:0.99) (价格较低的一方)</label>
+    <input type="number" id="PB" step="0.01" onwheel="this.blur()">
+
+    <label>杠杆倍数</label>
+    <input type="number" id="L" value="3" step="1" onwheel="this.blur()">
+
+    <label>A 保证金</label>
+    <input type="number" id="MA" step="1" value="200" onwheel="this.blur()">
+
+    <label>胜利方结算价 (Max:1)</label>
+    <input type="number" id="S" value="0.99" step="0.01" onwheel="this.blur()">
+
+    <label>平台手续费 (%)</label>
+    <input type="number" id="fee" value="5" step="0.1" onwheel="this.blur()">
+
+    <button onclick="calculate()">计算</button>
+
+    <div class="result" id="result"></div>
+</div>
+
+<script>
+    document.addEventListener('wheel', function(e) {
+        if (document.activeElement.type === "number") {
+            e.preventDefault();
+        }
+    }, { passive: false });
+
+    function calculate() {
+        let PA = parseFloat(document.getElementById('PA').value);
+        let PB = parseFloat(document.getElementById('PB').value);
+        let L = parseFloat(document.getElementById('L').value);
+        let MA = parseFloat(document.getElementById('MA').value);
+        let S = parseFloat(document.getElementById('S').value);
+        let fee = parseFloat(document.getElementById('fee').value) / 100;
+
+        let CA = (L * MA) / PA;
+        let MB = (CA * S - (L - 1) * MA) / (L * (S / PB) - (L - 1));
+
+        let Total = MA + MB;
+
+        let Income_A = CA * S;
+        let Cost_A = L * MA;
+        let Gross_A = Income_A - Cost_A;
+        let Net_A = Gross_A * (1 - fee) - MB;
+
+        let CB = (L * MB) / PB;
+        let Income_B = CB * S;
+        let Cost_B = L * MB;
+        let Gross_B = Income_B - Cost_B;
+        let Net_B = Gross_B * (1 - fee) - MA;
+
+        let NetProfit = Math.min(Net_A, Net_B);
+
+        let html = `
+            <h2 style="text-align:center; color:#1e40af;">计算结果</h2>
+            <p><strong>A 保证金：</strong> ${MA.toFixed(2)}</p>
+            <p><strong>B 保证金：</strong> ${MB.toFixed(2)}</p>
+            <p><strong>总投入资金：</strong> ${Total.toFixed(2)}</p>
+            <p class="highlight">合共收回💰： ${(Total + NetProfit).toFixed(2)}</p>
+            <p class="highlight">扣除费用后的净利润🤑： ${NetProfit.toFixed(2)}</p>
+            <p><strong>预估回报率：</strong> ${(NetProfit / Total * 100).toFixed(2)} %</p>
+        `;
+        
+        document.getElementById('result').innerHTML = html;
+    }
+
+    window.onload = calculate;
+</script>
+
+</body>
+</html>
